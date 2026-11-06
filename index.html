@@ -139,7 +139,6 @@
     .d-actions { display: grid; gap: 8px; padding: 12px 16px 4px; }
     .d-cta { display: flex; align-items: center; justify-content: center; height: 48px; border-radius: 12px; background: var(--accent); color: #fff;
              font-weight: 600; font-size: 16px; text-decoration: none; }
-    .d-cta.secondary { background: var(--hover); color: var(--ink); }
   }
 </style>
 </head>
@@ -183,7 +182,6 @@ const COLORS = { High: '#2563eb', Medium: '#ea8a0c' };
 const FIT_LABEL = { High: 'Strong ME fit', Medium: 'Some ME roles' };
 const US_BOUNDS = [[24.5, -124.8], [49.4, -66.9]];
 const VENUE = [42.3456, -71.0441];
-const FLOOR_PLAN = 'https://swe.expocad.com/Events/we26/index.html';
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -460,7 +458,6 @@ function renderDetail(c, on) {
       </ul>
       <div class="d-actions">
         ${c.url ? `<a class="d-cta" href="${esc(c.url)}" target="_blank" rel="noopener">Careers and website ↗</a>` : ''}
-        <a class="d-cta secondary" href="${FLOOR_PLAN}" target="_blank" rel="noopener">Find booth ${esc(c.booth)} on the floor plan ↗</a>
       </div>
     </div>`;
   $('detail').querySelector('.d-back').onclick = closeCompany;
