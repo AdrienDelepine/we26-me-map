@@ -70,6 +70,17 @@
              background: rgba(15, 23, 42, .82); border: 2px solid #fff; box-shadow: 0 1px 4px rgba(15, 23, 42, .35); }
   .venue-pin { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: #dc2626;
                color: #fff; font-size: 15px; border: 2px solid #fff; box-shadow: 0 1px 5px rgba(0, 0, 0, .4); }
+  .site-label { background: none; border: 0; box-shadow: none; padding: 0; font-size: 11px; font-weight: 600; color: var(--ink);
+                max-width: 150px; overflow: hidden; text-overflow: ellipsis;
+                text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff, 0 0 4px #fff; }
+  .site-label::before { display: none; }
+  .has-selection .site-label { opacity: .3 !important; }  /* Leaflet sets tooltip opacity inline */
+  .cl-list { list-style: none; margin: 8px -14px 0; padding: 0; max-height: 260px; overflow-y: auto; border-top: 1px solid var(--line); }
+  .cl-list a { display: flex; align-items: center; gap: 8px; padding: 7px 14px; color: var(--ink); text-decoration: none; cursor: pointer; }
+  .cl-list a:hover { background: var(--hover); }
+  .cl-list .cl-name { font-weight: 600; flex: 1; min-width: 0; }
+  .cl-list .cl-city { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .area-tag { display: inline-flex; align-items: center; gap: 4px; }
   .sel-label { background: var(--ink); color: #fff; border: 0; border-radius: 6px; font-size: 11px; font-weight: 600; padding: 3px 7px; box-shadow: none; }
   .sel-label::before { display: none; }
   .leaflet-control-attribution { font-size: 11px; }
@@ -206,7 +217,7 @@ const venue = L.marker(VENUE, {
 if (canHover) venue.bindTooltip('WE26 venue', { direction: 'top', offset: [0, -14] });
 
 const cluster = L.markerClusterGroup({
-  maxClusterRadius: 45, showCoverageOnHover: false, spiderfyDistanceMultiplier: 1.4,
+  maxClusterRadius: 45, showCoverageOnHover: false, spiderfyDistanceMultiplier: 1.4, zoomToBoundsOnClick: false,
   iconCreateFunction: cl => {
     const n = cl.getChildCount();
     const size = n < 10 ? 30 : n < 30 ? 36 : 42;
@@ -214,8 +225,48 @@ const cluster = L.markerClusterGroup({
   }
 });
 map.addLayer(cluster);
+// clusters say what is inside: hover summary on desktop, a list on click everywhere
+// map labels drop legal suffixes: "Estee Lauder Companies Inc. (The)" reads as "Estee Lauder Companies"
+const shortName = n => (n.match(/\(([A-Z]{2,6})\)$/) || [])[1] || n.replace(/\s*\(The\)|,\s*The$/i, '').replace(/,?\s+(Inc\.?|LLC|Corporation|Company)$/i, '').replace(/,?\s+(Inc\.?|LLC)$/i, '').trim();
+const clusterSites = cl => cl.getAllChildMarkers()
+  .map(m => ({ c: m.company, i: m.officeIdx }))
+  .sort((a, b) => a.c.name.localeCompare(b.c.name) || a.i - b.i);
+function clusterSummary(cl) {
+  const names = [...new Set(clusterSites(cl).map(x => shortName(x.c.name)))];
+  return names.slice(0, 3).join(', ') + (names.length > 3 ? ` and ${names.length - 3} more` : '');
+}
+if (canHover) {
+  cluster.on('clustermouseover', e => e.layer.bindTooltip(esc(clusterSummary(e.layer)), { direction: 'top', offset: [0, -16] }).openTooltip());
+  cluster.on('clustermouseout', e => e.layer.unbindTooltip());
+}
+let lastCluster = null;
+cluster.on('clusterclick', e => {
+  const cl = e.layer, sites = clusterSites(cl);
+  lastCluster = cl;
+  if (phone) {
+    // phones: zoom in and list just these sites in the sheet
+    area = new Set(cl.getAllChildMarkers());
+    closeCompany();
+    render();
+    listEl.scrollTop = 0;
+    setSnap('mid');
+    flyToPoints(sites.map(x => [x.c.offices[x.i].lat, x.c.offices[x.i].lon]), 10);
+    return;
+  }
+  L.popup({ maxWidth: 340, minWidth: 260 })
+    .setLatLng(cl.getLatLng())
+    .setContent(`<div class="pop-title">${sites.length} sites in this area</div>
+      <div class="pop-muted">Click a company to see it. <a class="pop-link" style="margin:0" data-zoom>Zoom in</a></div>
+      <ul class="cl-list">${sites.map(x => `<li><a data-company="${COMPANIES.indexOf(x.c)}" data-office="${x.i}">
+        <span class="dot" style="background:${COLORS[x.c.fit]}"></span><span class="cl-name">${esc(x.c.name)}</span>
+        <span class="cl-city">${esc(x.c.offices[x.i].city)}</span></a></li>`).join('')}</ul>`)
+    .openOn(map);
+});
 // selected company sits in its own pane above clusters; everything else dims
 map.createPane('selected').style.zIndex = 640;
+// name labels sit under the cluster bubbles so a bubble is never covered by text
+map.createPane('labels').style.zIndex = 590;
+map.getPane('labels').style.pointerEvents = 'none';
 const selection = L.layerGroup().addTo(map);
 
 const Legend = L.Control.extend({
@@ -223,7 +274,7 @@ const Legend = L.Control.extend({
     const d = L.DomUtil.create('div', 'legend');
     d.innerHTML = `<div><span class="dot" style="background:${COLORS.High}"></span>Strong ME fit</div>
       <div><span class="dot" style="background:${COLORS.Medium}"></span>Some ME roles</div>
-      <div><span class="dot" style="background:rgba(15,23,42,.82)"></span>Group of sites (click to expand)</div>
+      <div><span class="dot" style="background:rgba(15,23,42,.82)"></span>Group of sites (click to list them)</div>
       <div><span class="dot" style="background:#dc2626"></span>WE26 venue</div>`;
     return d;
   }
@@ -298,10 +349,15 @@ function popupHtml(c, o) {
     ${c.url ? `<a class="pop-link" href="${esc(c.url)}" target="_blank" rel="noopener">Website / careers ↗</a>` : ''}`;
 }
 
+// every visible dot carries its company name, so the map reads without clicking
+const labelOn = m => m.bindTooltip(esc(shortName(m.company.name)), { permanent: true, direction: 'right', offset: [phone ? 10 : 8, 0], className: 'site-label', interactive: false, pane: 'labels' });
+const labelOff = m => m.unbindTooltip();
+
 COMPANIES.forEach(c => {
   c.markers = c.offices.map((o, i) => {
     const m = L.circleMarker([o.lat, o.lon], { radius: phone ? 9 : 7, color: '#fff', weight: 2, fillColor: COLORS[c.fit], fillOpacity: 0.95 });
-    if (canHover) m.bindTooltip(`${esc(c.name)} · ${esc(o.city)}`, { direction: 'top', offset: [0, -6] });
+    m.company = c; m.officeIdx = i;
+    labelOn(m);
     m.on('click', e => { L.DomEvent.stopPropagation(e); openCompany(c, i, { fly: false }); });
     return m;
   });
@@ -309,6 +365,7 @@ COMPANIES.forEach(c => {
 
 // "Other sites" links inside desktop popups jump to that site
 map.getContainer().addEventListener('click', e => {
+  if (e.target.closest('a[data-zoom]') && lastCluster) { map.closePopup(); map.flyToBounds(lastCluster.getBounds().pad(0.2), { ...fitPadding(), maxZoom: 10, duration: 0.8 }); return; }
   const a = e.target.closest('a[data-company]');
   if (a) openSite(COMPANIES[+a.dataset.company], +a.dataset.office);
 }, true);
@@ -343,12 +400,14 @@ function officeMatches(c, o, q, state) {
   return [c.name, c.sector, c.group].join(' ').toLowerCase().includes(q) || (o.city + ' ' + o.note).toLowerCase().includes(q);
 }
 
+let area = null;   // markers of the cluster tapped on a phone, or null
+
 function filtered() {
   const q = $('q').value.trim().toLowerCase();
   const group = $('group').value, state = $('state').value;
   return COMPANIES
     .filter(c => fits.has(c.fit) && (!group || c.group === group))
-    .map(c => ({ c, idx: c.offices.map((o, i) => officeMatches(c, o, q, state) ? i : -1).filter(i => i >= 0) }))
+    .map(c => ({ c, idx: c.offices.map((o, i) => officeMatches(c, o, q, state) && (!area || area.has(c.markers[i])) ? i : -1).filter(i => i >= 0) }))
     .filter(x => x.idx.length);
 }
 
@@ -357,8 +416,10 @@ const listEl = $('list');
 function render() {
   const shown = filtered();
   if (sortBy === 'booth') shown.sort((a, b) => +a.c.booth - +b.c.booth);
+  // the area only narrows the list; the map keeps every site that matches the filters
+  const onMap = area ? (() => { const a = area; area = null; const all = filtered(); area = a; return all; })() : shown;
   cluster.clearLayers();
-  cluster.addLayers(shown.flatMap(x => x.idx.map(i => x.c.markers[i])));
+  cluster.addLayers(onMap.flatMap(x => x.idx.map(i => x.c.markers[i])));
 
   listEl.innerHTML = '';
   if (!shown.length) listEl.innerHTML = '<li class="empty">No companies match these filters.</li>';
@@ -375,14 +436,17 @@ function render() {
   ['group', 'state'].forEach(id => $(id).classList.toggle('set', !!$(id).value));
   const sites = shown.reduce((a, x) => a + x.idx.length, 0);
   const filteredNow = $('q').value || $('group').value || $('state').value || fits.size < 2;
-  $('stats').innerHTML = `${shown.length} companies · ${sites} sites` +
-    (filteredNow ? ' · <button class="linkbtn" id="clear">Clear</button>' : '');
-  if (filteredNow) $('clear').onclick = resetAll;
+  $('stats').innerHTML = (area ? `${sites} sites in this area` : `${shown.length} companies · ${sites} sites`) +
+    (area ? ' · <button class="linkbtn" id="showall">Show all</button>' : filteredNow ? ' · <button class="linkbtn" id="clear">Clear</button>' : '');
+  if (area) $('showall').onclick = () => { area = null; render(); };
+  else if (filteredNow) $('clear').onclick = resetAll;
   if (active && !shown.some(x => x.c === active)) closeCompany();
 }
 
 // ---------- selection ----------
 function setActive(c, scroll = true) {
+  if (active) active.markers.forEach(labelOn);
+  if (c) c.markers.forEach(labelOff);
   active = c;
   selection.clearLayers();
   listEl.querySelectorAll('li').forEach(li => li.classList.toggle('active', !!c && li.dataset.name === c.name));
@@ -472,7 +536,7 @@ function showSite(c, i) {
 
 // ---------- reset and events ----------
 function resetAll() {
-  $('q').value = ''; $('group').value = ''; $('state').value = '';
+  $('q').value = ''; $('group').value = ''; $('state').value = ''; area = null;
   fits.add('High'); fits.add('Medium');
   document.querySelectorAll('.chip').forEach(ch => { ch.classList.remove('off'); ch.setAttribute('aria-pressed', true); });
   closeCompany();
