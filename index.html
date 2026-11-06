@@ -68,6 +68,11 @@
   .has-selection .leaflet-overlay-pane, .has-selection .leaflet-marker-pane { opacity: .35; transition: opacity .2s; }
   .cluster { display: flex; align-items: center; justify-content: center; border-radius: 50%; color: #fff; font-weight: 700; font-size: 12px;
              background: rgba(15, 23, 42, .82); border: 2px solid #fff; box-shadow: 0 1px 4px rgba(15, 23, 42, .35); }
+  .pin { box-sizing: border-box; width: 100%; height: 100%; border-radius: 50%; background: var(--c); border: 2px solid #fff;
+         box-shadow: 0 1px 3px rgba(15, 23, 42, .35); cursor: pointer; }
+  .pin-ring { box-sizing: border-box; width: 100%; height: 100%; border-radius: 50%; border: 2.5px solid var(--c); display: flex;
+              align-items: center; justify-content: center; cursor: pointer; }
+  .pin-ring .pin { width: 54%; height: 54%; }
   .venue-pin { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: #dc2626;
                color: #fff; font-size: 15px; border: 2px solid #fff; box-shadow: 0 1px 5px rgba(0, 0, 0, .4); }
   .site-label { background: none; border: 0; box-shadow: none; padding: 0; font-size: 11px; font-weight: 600; color: var(--ink);
@@ -350,12 +355,18 @@ function popupHtml(c, o) {
 }
 
 // every visible dot carries its company name, so the map reads without clicking
-const labelOn = m => m.bindTooltip(esc(shortName(m.company.name)), { permanent: true, direction: 'right', offset: [phone ? 10 : 8, 0], className: 'site-label', interactive: false, pane: 'labels' });
+// dots are HTML markers, not SVG circles: SVG layers stretch during zoom animations, HTML markers keep their size
+const PIN = phone ? 18 : 14, RING = phone ? 32 : 26;
+const pinIcon = color => L.divIcon({ className: '', html: `<div class="pin" style="--c:${color}"></div>`,
+  iconSize: [PIN, PIN], iconAnchor: [PIN / 2, PIN / 2], tooltipAnchor: [PIN / 2, 0], popupAnchor: [0, -PIN / 2] });
+const ringIcon = color => L.divIcon({ className: '', html: `<div class="pin-ring" style="--c:${color}"><div class="pin"></div></div>`,
+  iconSize: [RING, RING], iconAnchor: [RING / 2, RING / 2], tooltipAnchor: [RING / 2, 0], popupAnchor: [0, -RING / 2] });
+const labelOn = m => m.bindTooltip(esc(shortName(m.company.name)), { permanent: true, direction: 'right', offset: [4, 0], className: 'site-label', interactive: false, pane: 'labels' });
 const labelOff = m => m.unbindTooltip();
 
 COMPANIES.forEach(c => {
   c.markers = c.offices.map((o, i) => {
-    const m = L.circleMarker([o.lat, o.lon], { radius: phone ? 9 : 7, color: '#fff', weight: 2, fillColor: COLORS[c.fit], fillOpacity: 0.95 });
+    const m = L.marker([o.lat, o.lon], { icon: pinIcon(COLORS[c.fit]), keyboard: false });
     m.company = c; m.officeIdx = i;
     labelOn(m);
     m.on('click', e => { L.DomEvent.stopPropagation(e); openCompany(c, i, { fly: false }); });
@@ -453,9 +464,8 @@ function setActive(c, scroll = true) {
   map.getContainer().classList.toggle('has-selection', !!c);
   if (!c) return;
   c.offices.forEach((o, i) => {
-    L.circleMarker([o.lat, o.lon], { pane: 'selected', radius: phone ? 15 : 13, color: COLORS[c.fit], weight: 2.5, fill: false, interactive: false }).addTo(selection);
-    const m = L.circleMarker([o.lat, o.lon], { pane: 'selected', radius: phone ? 9 : 7, color: '#fff', weight: 2, fillColor: COLORS[c.fit], fillOpacity: 1 })
-      .bindTooltip(o.city, { permanent: true, direction: 'auto', offset: [phone ? 14 : 12, 0], className: 'sel-label' })
+    const m = L.marker([o.lat, o.lon], { pane: 'selected', icon: ringIcon(COLORS[c.fit]), keyboard: false })
+      .bindTooltip(o.city, { permanent: true, direction: 'auto', offset: [4, 0], className: 'sel-label' })
       .on('click', e => { L.DomEvent.stopPropagation(e); phone ? showSite(c, i) : m.openPopup(); })
       .addTo(selection);
     if (!phone) m.bindPopup(() => popupHtml(c, o), { maxWidth: 320 });
