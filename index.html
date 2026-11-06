@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
 <title>WE26 Boston - Engineering Sites for Mechanical Engineers</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
@@ -11,31 +12,33 @@
     --high: #2563eb; --medium: #ea8a0c; --ink: #0f172a; --muted: #64748b; --faint: #94a3b8;
     --line: #e2e8f0; --hover: #f1f5f9; --active: #eff6ff; --accent: #2563eb;
   }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: var(--ink); }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: var(--ink);
+               overscroll-behavior: none; }
   .app { display: grid; grid-template-columns: 360px 1fr; height: 100vh; height: 100dvh; }
-  aside { display: flex; flex-direction: column; border-right: 1px solid var(--line); background: #fff; min-height: 0; z-index: 1; }
+  aside { display: flex; flex-direction: column; border-right: 1px solid var(--line); background: #fff; min-height: 0; z-index: 1000; }
+  aside > * { flex: none; }
+  .grab, .t-short { display: none; }
   header { padding: 16px 16px 12px; }
   h1 { font-size: 16px; line-height: 1.3; margin: 0 0 4px; }
   .sub { font-size: 12px; color: var(--muted); line-height: 1.45; }
   .controls { padding: 0 16px 12px; display: grid; gap: 8px; border-bottom: 1px solid var(--line); }
-  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   input, select { width: 100%; height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 13px;
                   background: #fff; color: var(--ink); outline: none; }
   input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37, 99, 235, .15); }
-  .chips { display: flex; gap: 6px; }
-  .chip { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; height: 30px; border: 1px solid var(--line);
-          border-radius: 999px; font-size: 12px; cursor: pointer; user-select: none; background: #fff; transition: opacity .15s; }
+  .chip { display: flex; align-items: center; justify-content: center; gap: 6px; height: 30px; border: 1px solid var(--line); border-radius: 999px;
+          font: inherit; font-size: 12px; color: var(--ink); cursor: pointer; user-select: none; background: #fff; transition: opacity .15s; }
   .chip:hover { background: var(--hover); }
   .chip.off { opacity: .4; }
   .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; border: 1.5px solid #fff; box-shadow: 0 0 0 1px rgba(15, 23, 42, .15); }
   .statusbar { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--muted); min-height: 18px; }
   .linkbtn { border: 0; background: none; padding: 0; font: inherit; color: var(--accent); cursor: pointer; }
   .linkbtn:hover { text-decoration: underline; }
-  .sortbtns { display: inline-flex; gap: 2px; }
+  .sortbtns { display: inline-flex; align-items: center; gap: 2px; }
   .sortbtns button { border: 0; background: none; font: inherit; font-size: 12px; color: var(--muted); padding: 2px 6px; border-radius: 6px; cursor: pointer; }
   .sortbtns button.on { background: var(--hover); color: var(--ink); font-weight: 600; }
-  #list { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
+  #list { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1 1 auto; min-height: 0; overscroll-behavior: contain; }
   #list li { padding: 10px 16px; border-bottom: 1px solid var(--line); cursor: pointer; border-left: 3px solid transparent; }
   #list li:hover { background: var(--hover); }
   #list li.active { background: var(--active); border-left-color: var(--accent); }
@@ -47,6 +50,7 @@
   details { padding: 10px 16px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
   summary { cursor: pointer; }
   details p { margin: 6px 0 0; line-height: 1.5; max-height: 160px; overflow-y: auto; }
+  #detail { display: none; }
   #map { height: 100%; background: #f5f3ef; }
 
   .leaflet-container { font: inherit; }
@@ -72,32 +76,88 @@
   .legend { background: #fff; padding: 8px 10px; border-radius: 8px; box-shadow: 0 1px 5px rgba(15, 23, 42, .2); font-size: 12px; line-height: 1.8; }
   .legend .dot { margin-right: 6px; vertical-align: -1px; }
 
+  /* ---------- phone: full-screen map with a draggable bottom sheet ---------- */
   @media (max-width: 760px) {
-    .app { grid-template-columns: 1fr; grid-template-rows: 45% 55%; }
-    aside { order: 2; border-right: 0; border-top: 1px solid var(--line); }
-    header { padding: 10px 16px 8px; }
-    h1 { font-size: 14px; margin: 0; }
-    .sub, .legend { display: none; }
-    .leaflet-control-attribution { font-size: 9px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    html, body { overflow: hidden; }
+    .app { display: block; height: 100%; }
+    #map { position: fixed; inset: 0; height: auto; }
+    .legend, .leaflet-control-zoom, .sub, .t-long, aside > details { display: none; }
+    .t-short { display: inline; }
+    .leaflet-top { top: env(safe-area-inset-top); }
+    .leaflet-control-attribution { font-size: 9px; border-radius: 0 0 0 6px; }
+
+    aside { position: fixed; left: 0; right: 0; bottom: 0; height: 50%; border: 0; border-radius: 16px 16px 0 0;
+            box-shadow: 0 -4px 24px rgba(15, 23, 42, .16); overflow: hidden; padding-bottom: env(safe-area-inset-bottom); }
+    aside.anim { transition: height .28s cubic-bezier(.2, .8, .2, 1); }
+    .grab { display: flex; justify-content: center; align-items: center; height: 22px; cursor: grab; touch-action: none; }
+    .grab span { width: 38px; height: 5px; border-radius: 3px; background: #cbd5e1; }
+    header { padding: 0 16px 8px; touch-action: none; }
+    h1 { font-size: 16px; margin: 0; }
+    .controls { padding: 0 0 8px; gap: 10px; }
+    #q { margin: 0 16px; width: calc(100% - 32px); }
+    input, select { height: 44px; font-size: 16px; border-radius: 12px; background-color: #f1f5f9; border-color: transparent; }
+    input:focus { background: #fff; }
+    .filters { display: flex; gap: 8px; overflow-x: auto; padding: 0 16px; scrollbar-width: none; touch-action: pan-x; }
+    .filters::-webkit-scrollbar { display: none; }
+    .filters .chip, .filters select { flex: none; width: auto; height: 36px; border-radius: 999px; font-size: 14px; }
+    .filters .chip { order: -1; padding: 0 14px; border-color: var(--line); }
+    .filters .chip:hover { background: #fff; }
+    #group { width: 168px; }
+    #state { width: 124px; }
+    .filters select { -webkit-appearance: none; appearance: none; white-space: nowrap; overflow: hidden; padding: 0 30px 0 14px; background-color: #fff; border-color: var(--line);
+                      text-overflow: ellipsis; background-repeat: no-repeat; background-position: right 10px center; background-size: 12px;
+                      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%2364748b' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+    .filters select.set { border-color: var(--accent); background-color: var(--active); color: var(--accent); font-weight: 600; }
+    .statusbar { padding: 0 16px; font-size: 13px; min-height: 32px; touch-action: none; }
+    .sortbtns button { font-size: 13px; padding: 6px 10px; }
+    #list li { padding: 12px 16px; }
+    .name { font-size: 15px; }
+    .booth { font-size: 13px; }
+    .meta { font-size: 13px; }
+
+    /* company page inside the sheet */
+    aside.detail-mode header, aside.detail-mode .controls, aside.detail-mode #list, aside.detail-mode details { display: none; }
+    aside.detail-mode #detail { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+    .d-top { padding: 0 16px 12px; touch-action: none; }
+    .d-back { border: 0; background: none; font: inherit; font-size: 15px; color: var(--accent); padding: 4px 0 8px; margin-left: -2px; cursor: pointer; }
+    .d-head { display: flex; align-items: flex-start; gap: 12px; }
+    .d-name { flex: 1; font-size: 20px; font-weight: 700; line-height: 1.25; }
+    .d-booth { flex: none; text-align: center; background: var(--ink); color: #fff; border-radius: 10px; padding: 6px 10px; line-height: 1.1; }
+    .d-booth small { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; opacity: .75; }
+    .d-booth b { font-size: 18px; font-variant-numeric: tabular-nums; }
+    .d-meta { margin-top: 6px; font-size: 14px; color: var(--muted); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .d-body { overflow-y: auto; overscroll-behavior: contain; flex: 1 1 auto; min-height: 0; padding-bottom: 12px; }
+    .d-label { padding: 10px 16px 6px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; border-top: 1px solid var(--line); }
+    .d-sites { list-style: none; margin: 0; padding: 0; }
+    .d-sites li { display: flex; align-items: center; gap: 12px; padding: 11px 16px; cursor: pointer; border-left: 3px solid transparent; }
+    .d-sites li.on { background: var(--active); border-left-color: var(--accent); }
+    .d-sites .pin { width: 12px; height: 12px; border-radius: 50%; flex: none; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(15, 23, 42, .2); }
+    .d-sites .txt { flex: 1; min-width: 0; }
+    .d-sites b { display: block; font-size: 15px; }
+    .d-sites span { font-size: 13px; color: var(--muted); }
+    .d-sites .chev { color: var(--faint); font-size: 18px; }
+    .d-actions { display: grid; gap: 8px; padding: 12px 16px 4px; }
+    .d-cta { display: flex; align-items: center; justify-content: center; height: 48px; border-radius: 12px; background: var(--accent); color: #fff;
+             font-weight: 600; font-size: 16px; text-decoration: none; }
+    .d-cta.secondary { background: var(--hover); color: var(--ink); }
   }
 </style>
 </head>
 <body>
 <div class="app">
-  <aside>
+  <aside id="sheet">
+    <div class="grab" aria-hidden="true"><span></span></div>
     <header>
-      <h1>WE26 Boston - where the engineering jobs are</h1>
+      <h1><span class="t-long">WE26 Boston - where the engineering jobs are</span><span class="t-short">WE26 Boston engineering jobs</span></h1>
       <div class="sub">Exhibitors at SWE WE26 (Nov 5-7, 2026, Boston Convention &amp; Exhibition Center) that hire mechanical engineering master's graduates, with their main engineering sites.</div>
     </header>
     <div class="controls">
-      <input id="q" type="search" placeholder="Search company, city, or keyword" autocomplete="off">
-      <div class="two">
+      <input id="q" type="search" placeholder="Search company, city, or keyword" autocomplete="off" enterkeyhint="search">
+      <div class="filters">
         <select id="group" aria-label="Industry"><option value="">All industries</option></select>
         <select id="state" aria-label="State"><option value="">All states</option></select>
-      </div>
-      <div class="chips">
-        <div class="chip" data-fit="High" role="button" tabindex="0"><span class="dot" style="background:var(--high)"></span>Strong ME fit</div>
-        <div class="chip" data-fit="Medium" role="button" tabindex="0"><span class="dot" style="background:var(--medium)"></span>Some ME roles</div>
+        <button class="chip" data-fit="High" aria-pressed="true"><span class="dot" style="background:var(--high)"></span>Strong ME fit</button>
+        <button class="chip" data-fit="Medium" aria-pressed="true"><span class="dot" style="background:var(--medium)"></span>Some ME roles</button>
       </div>
       <div class="statusbar">
         <span id="stats"></span>
@@ -105,6 +165,7 @@
       </div>
     </div>
     <ul id="list"></ul>
+    <div id="detail"></div>
     <details>
       <summary>Exhibitors not mapped (<span id="skipCount"></span>)</summary>
       <p id="skipped"></p>
@@ -122,32 +183,29 @@ const COLORS = { High: '#2563eb', Medium: '#ea8a0c' };
 const FIT_LABEL = { High: 'Strong ME fit', Medium: 'Some ME roles' };
 const US_BOUNDS = [[24.5, -124.8], [49.4, -66.9]];
 const VENUE = [42.3456, -71.0441];
+const FLOOR_PLAN = 'https://swe.expocad.com/Events/we26/index.html';
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const phoneQuery = matchMedia('(max-width: 760px)');
+const canHover = matchMedia('(hover: hover)').matches;
+let phone = phoneQuery.matches;
 
 // ---------- map ----------
-const map = L.map('map', { zoomSnap: 0.5, worldCopyJump: true, maxZoom: 16 });
+const map = L.map('map', { zoomSnap: 0.5, worldCopyJump: true, maxZoom: 16, tap: false });
 map.setView([39, -96], 4);
-// fit the US once the container has a real size (it can be 0 in a hidden tab or a lazy iframe)
-let fitted = false;
-new ResizeObserver(() => {
-  map.invalidateSize();
-  if (!fitted && map.getSize().x > 0) { map.fitBounds(US_BOUNDS); fitted = true; }
-}).observe(map.getContainer());
-// Esri light gray canvas: free without an API key (CARTO now requires one)
 const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/';
 L.tileLayer(ESRI + 'World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
   attribution: 'Tiles &copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors', maxZoom: 16
 }).addTo(map);
 L.tileLayer(ESRI + 'World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, zIndex: 2 }).addTo(map);
 
-L.marker(VENUE, {
+const venue = L.marker(VENUE, {
   icon: L.divIcon({ className: '', html: '<div class="venue-pin">★</div>', iconSize: [28, 28], iconAnchor: [14, 14] }),
   zIndexOffset: -1000
-}).bindTooltip('WE26 venue', { direction: 'top', offset: [0, -14] })
-  .bindPopup('<div class="pop-title">WE26 venue</div>Boston Convention &amp; Exhibition Center<br><span class="pop-muted">415 Summer St, Boston, MA - Nov 5-7, 2026</span>')
+}).bindPopup('<div class="pop-title">WE26 venue</div>Boston Convention &amp; Exhibition Center<br><span class="pop-muted">415 Summer St, Boston, MA - Nov 5-7, 2026</span>')
   .addTo(map);
+if (canHover) venue.bindTooltip('WE26 venue', { direction: 'top', offset: [0, -14] });
 
 const cluster = L.markerClusterGroup({
   maxClusterRadius: 45, showCoverageOnHover: false, spiderfyDistanceMultiplier: 1.4,
@@ -174,6 +232,63 @@ const Legend = L.Control.extend({
 });
 new Legend({ position: 'bottomright' }).addTo(map);
 
+// ---------- bottom sheet (phone only) ----------
+const sheet = $('sheet');
+const SNAPS = ['peek', 'mid', 'full'];
+let snap = 'mid';
+
+const offsetIn = el => el.getBoundingClientRect().top - sheet.getBoundingClientRect().top;
+function sheetHeights() {
+  const H = window.innerHeight;
+  const full = H - 64;
+  const detail = sheet.classList.contains('detail-mode');
+  const peek = detail ? offsetIn(sheet.querySelector('.d-body')) : offsetIn($('list'));
+  const content = detail ? offsetIn(sheet.querySelector('.d-body')) + sheet.querySelector('.d-body').scrollHeight + 8 : H;
+  const mid = Math.min(Math.round(H * (detail ? 0.6 : 0.5)), content);
+  return { peek: Math.round(peek), mid: Math.max(mid, Math.round(peek)), full };
+}
+function setSnap(s, animate = true) {
+  snap = s;
+  if (!phone) { sheet.style.height = ''; return; }
+  sheet.classList.toggle('anim', animate);
+  sheet.style.height = sheetHeights()[s] + 'px';
+}
+const visibleSheet = () => (phone ? sheetHeights()[snap] : 0);
+// keep things clear of the sheet on phones, and of the edges everywhere
+function fitPadding() {
+  return phone ? { paddingTopLeft: [8, 40], paddingBottomRight: [8, visibleSheet() + 16] } : { padding: [24, 24] };
+}
+
+let drag = null;
+sheet.addEventListener('pointerdown', e => {
+  if (!phone || e.button > 0 || e.target.closest('input, select, button, a, #list, .d-body, details')) return;
+  drag = { y: e.clientY, h: sheet.getBoundingClientRect().height, t: performance.now(), last: e.clientY, lastT: performance.now(), moved: false };
+  try { sheet.setPointerCapture(e.pointerId); } catch {}
+  sheet.classList.remove('anim');
+});
+sheet.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dy = drag.y - e.clientY;
+  if (Math.abs(dy) > 5) drag.moved = true;
+  const { peek, full } = sheetHeights();
+  sheet.style.height = Math.max(peek - 24, Math.min(full, drag.h + dy)) + 'px';
+  drag.v = (drag.last - e.clientY) / Math.max(1, performance.now() - drag.lastT);
+  drag.last = e.clientY; drag.lastT = performance.now();
+});
+const endDrag = e => {
+  if (!drag) return;
+  const d = drag; drag = null;
+  if (!d.moved) { if (e.target.closest('.grab')) setSnap(snap === 'peek' ? 'mid' : 'peek'); else setSnap(snap); return; }
+  const h = sheet.getBoundingClientRect().height, hs = sheetHeights();
+  let i = SNAPS.indexOf(SNAPS.reduce((a, b) => Math.abs(hs[b] - h) < Math.abs(hs[a] - h) ? b : a));
+  if (d.v > 0.4) i = Math.min(2, SNAPS.indexOf(snap) + 1);         // flick up
+  else if (d.v < -0.4) i = Math.max(0, SNAPS.indexOf(snap) - 1);   // flick down
+  setSnap(SNAPS[i]);
+};
+sheet.addEventListener('pointerup', endDrag);
+sheet.addEventListener('pointercancel', endDrag);
+
+// ---------- markers ----------
 function popupHtml(c, o) {
   const others = c.offices.filter(x => x !== o);
   return `<div class="pop-title">${esc(c.name)}</div>
@@ -186,21 +301,18 @@ function popupHtml(c, o) {
 }
 
 COMPANIES.forEach(c => {
-  c.markers = c.offices.map(o => {
-    const m = L.circleMarker([o.lat, o.lon], { radius: 7, color: '#fff', weight: 2, fillColor: COLORS[c.fit], fillOpacity: 0.95 })
-      .bindPopup(() => popupHtml(c, o), { maxWidth: 320 })
-      .bindTooltip(`${esc(c.name)} · ${esc(o.city)}`, { direction: 'top', offset: [0, -6] });
-    m.on('click', e => { L.DomEvent.stopPropagation(e); setActive(c); });
+  c.markers = c.offices.map((o, i) => {
+    const m = L.circleMarker([o.lat, o.lon], { radius: phone ? 9 : 7, color: '#fff', weight: 2, fillColor: COLORS[c.fit], fillOpacity: 0.95 });
+    if (canHover) m.bindTooltip(`${esc(c.name)} · ${esc(o.city)}`, { direction: 'top', offset: [0, -6] });
+    m.on('click', e => { L.DomEvent.stopPropagation(e); openCompany(c, i, { fly: false }); });
     return m;
   });
 });
 
-// "Other sites" links inside popups jump to that site
+// "Other sites" links inside desktop popups jump to that site
 map.getContainer().addEventListener('click', e => {
   const a = e.target.closest('a[data-company]');
-  if (!a) return;
-  const c = COMPANIES[+a.dataset.company], i = +a.dataset.office;
-  openSite(c, i);
+  if (a) openSite(COMPANIES[+a.dataset.company], +a.dataset.office);
 }, true);
 
 // ---------- filters ----------
@@ -213,16 +325,13 @@ const fits = new Set(['High', 'Medium']);
 let sortBy = 'name';
 let active = null;
 
-document.querySelectorAll('.chip').forEach(ch => {
-  const toggle = () => {
-    const f = ch.dataset.fit;
-    fits.has(f) ? fits.delete(f) : fits.add(f);
-    ch.classList.toggle('off', !fits.has(f));
-    render();
-  };
-  ch.addEventListener('click', toggle);
-  ch.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
-});
+document.querySelectorAll('.chip').forEach(ch => ch.addEventListener('click', () => {
+  const f = ch.dataset.fit;
+  fits.has(f) ? fits.delete(f) : fits.add(f);
+  ch.classList.toggle('off', !fits.has(f));
+  ch.setAttribute('aria-pressed', fits.has(f));
+  render();
+}));
 document.querySelectorAll('.sortbtns button').forEach(b => b.addEventListener('click', () => {
   sortBy = b.dataset.sort;
   document.querySelectorAll('.sortbtns button').forEach(x => x.classList.toggle('on', x === b));
@@ -261,16 +370,17 @@ function render() {
     li.dataset.name = c.name;
     li.innerHTML = `<div class="row"><span class="dot" style="background:${COLORS[c.fit]}"></span><span class="name">${esc(c.name)}</span><span class="booth">Booth ${esc(c.booth)}</span></div>
       <div class="meta">${esc(c.sector)} · ${idx.map(i => esc(c.offices[i].city)).join('; ')}</div>`;
-    li.addEventListener('click', () => focusCompany(c, idx));
+    li.addEventListener('click', () => openCompany(c, null, { idx }));
     listEl.appendChild(li);
   });
 
+  ['group', 'state'].forEach(id => $(id).classList.toggle('set', !!$(id).value));
   const sites = shown.reduce((a, x) => a + x.idx.length, 0);
   const filteredNow = $('q').value || $('group').value || $('state').value || fits.size < 2;
   $('stats').innerHTML = `${shown.length} companies · ${sites} sites` +
-    (filteredNow ? ' · <button class="linkbtn" id="clear">Clear filters</button>' : '');
+    (filteredNow ? ' · <button class="linkbtn" id="clear">Clear</button>' : '');
   if (filteredNow) $('clear').onclick = resetAll;
-  if (active && !shown.some(x => x.c === active)) setActive(null);
+  if (active && !shown.some(x => x.c === active)) closeCompany();
 }
 
 // ---------- selection ----------
@@ -281,55 +391,133 @@ function setActive(c, scroll = true) {
   map.getContainer().classList.toggle('has-selection', !!c);
   if (!c) return;
   c.offices.forEach((o, i) => {
-    L.circleMarker([o.lat, o.lon], { pane: 'selected', radius: 13, color: COLORS[c.fit], weight: 2.5, fill: false, interactive: false }).addTo(selection);
-    L.circleMarker([o.lat, o.lon], { pane: 'selected', radius: 7, color: '#fff', weight: 2, fillColor: COLORS[c.fit], fillOpacity: 1 })
-      .bindPopup(() => popupHtml(c, o), { maxWidth: 320 })
-      .bindTooltip(o.city, { permanent: true, direction: 'right', offset: [12, 0], className: 'sel-label' })
-      .on('click', e => L.DomEvent.stopPropagation(e))
+    L.circleMarker([o.lat, o.lon], { pane: 'selected', radius: phone ? 15 : 13, color: COLORS[c.fit], weight: 2.5, fill: false, interactive: false }).addTo(selection);
+    const m = L.circleMarker([o.lat, o.lon], { pane: 'selected', radius: phone ? 9 : 7, color: '#fff', weight: 2, fillColor: COLORS[c.fit], fillOpacity: 1 })
+      .bindTooltip(o.city, { permanent: true, direction: 'auto', offset: [phone ? 14 : 12, 0], className: 'sel-label' })
+      .on('click', e => { L.DomEvent.stopPropagation(e); phone ? showSite(c, i) : m.openPopup(); })
       .addTo(selection);
+    if (!phone) m.bindPopup(() => popupHtml(c, o), { maxWidth: 320 });
+    o.selMarker = m;
   });
-  if (scroll) listEl.querySelector('li.active')?.scrollIntoView({ block: 'nearest' });
+  if (scroll && !phone) listEl.querySelector('li.active')?.scrollIntoView({ block: 'nearest' });
 }
 
-function focusCompany(c, idx = c.offices.map((_, i) => i)) {
-  setActive(c, false);
-  const pts = idx.map(i => [c.offices[i].lat, c.offices[i].lon]);
+function flyToPoints(pts, maxZoom) {
   map.closePopup();
-  if (pts.length === 1) map.flyTo(pts[0], 9, { duration: 0.8 });
-  else map.flyToBounds(L.latLngBounds(pts).pad(0.25), { maxZoom: 8, duration: 0.8 });
-  map.once('moveend', () => selection.getLayers().filter(l => l.getPopup())[idx[0]]?.openPopup());
+  map.flyToBounds(L.latLngBounds(pts).pad(pts.length > 1 ? 0.15 : 0), { ...fitPadding(), maxZoom, duration: 0.8 });
+}
+
+// open a company: desktop shows popups, phones show a company page in the sheet
+function openCompany(c, officeIdx = null, { fly = true, idx = c.offices.map((_, i) => i) } = {}) {
+  setActive(c, officeIdx !== null);
+  if (phone) {
+    renderDetail(c, officeIdx);
+    sheet.classList.add('detail-mode');
+    sheet.querySelector('.d-body').scrollTop = 0;
+    setSnap('mid');
+  }
+  if (!fly && officeIdx !== null) {
+    // phones: keep the zoom but slide the tapped site above the sheet
+    if (phone) flyToPoints([[c.offices[officeIdx].lat, c.offices[officeIdx].lon]], map.getZoom());
+    else c.offices[officeIdx].selMarker.openPopup();
+    return;
+  }
+  flyToPoints(idx.map(i => [c.offices[i].lat, c.offices[i].lon]), idx.length > 1 ? 8 : 9);
+  if (!phone) map.once('moveend', () => c.offices[officeIdx ?? idx[0]].selMarker?.openPopup());
 }
 
 function openSite(c, i) {
   setActive(c);
-  map.closePopup();
-  map.flyTo([c.offices[i].lat, c.offices[i].lon], Math.max(map.getZoom(), 8), { duration: 0.8 });
-  map.once('moveend', () => selection.getLayers().filter(l => l.getPopup())[i]?.openPopup());
+  flyToPoints([[c.offices[i].lat, c.offices[i].lon]], Math.max(map.getZoom(), 8));
+  map.once('moveend', () => c.offices[i].selMarker?.openPopup());
 }
 
+function closeCompany() {
+  setActive(null);
+  map.closePopup();
+  if (sheet.classList.contains('detail-mode')) {
+    sheet.classList.remove('detail-mode');
+    setSnap(snap === 'peek' ? 'peek' : 'mid');
+  }
+}
+
+// ---------- phone company page ----------
+function renderDetail(c, on) {
+  $('detail').innerHTML = `
+    <div class="d-top">
+      <button class="d-back">‹ All companies</button>
+      <div class="d-head">
+        <div class="d-name">${esc(c.name)}</div>
+        <div class="d-booth"><small>Booth</small><b>${esc(c.booth)}</b></div>
+      </div>
+      <div class="d-meta"><span class="dot" style="background:${COLORS[c.fit]}"></span>${FIT_LABEL[c.fit]} · ${esc(c.sector)}</div>
+    </div>
+    <div class="d-body">
+      <div class="d-label">Engineering sites</div>
+      <ul class="d-sites">${c.offices.map((o, i) => `
+        <li data-i="${i}" class="${i === on ? 'on' : ''}"><span class="pin" style="background:${COLORS[c.fit]}"></span>
+          <div class="txt"><b>${esc(o.city)}</b><span>${esc(o.note)}</span></div><span class="chev">›</span></li>`).join('')}
+      </ul>
+      <div class="d-actions">
+        ${c.url ? `<a class="d-cta" href="${esc(c.url)}" target="_blank" rel="noopener">Careers and website ↗</a>` : ''}
+        <a class="d-cta secondary" href="${FLOOR_PLAN}" target="_blank" rel="noopener">Find booth ${esc(c.booth)} on the floor plan ↗</a>
+      </div>
+    </div>`;
+  $('detail').querySelector('.d-back').onclick = closeCompany;
+  $('detail').querySelectorAll('.d-sites li').forEach(li => li.onclick = () => showSite(c, +li.dataset.i));
+}
+
+function showSite(c, i) {
+  $('detail').querySelectorAll('.d-sites li').forEach(li => li.classList.toggle('on', +li.dataset.i === i));
+  if (snap === 'full') setSnap('mid');
+  flyToPoints([[c.offices[i].lat, c.offices[i].lon]], Math.max(map.getZoom(), 9));
+}
+
+// ---------- reset and events ----------
 function resetAll() {
   $('q').value = ''; $('group').value = ''; $('state').value = '';
   fits.add('High'); fits.add('Medium');
-  document.querySelectorAll('.chip').forEach(ch => ch.classList.remove('off'));
-  setActive(null);
-  map.closePopup();
+  document.querySelectorAll('.chip').forEach(ch => { ch.classList.remove('off'); ch.setAttribute('aria-pressed', true); });
+  closeCompany();
   render();
-  map.flyToBounds(US_BOUNDS, { duration: 0.8 });
+  map.flyToBounds(US_BOUNDS, { ...fitPadding(), duration: 0.8 });
 }
 
-map.on('click', () => setActive(null));
+map.on('click', () => {
+  if (active) closeCompany();
+  else if (phone && snap !== 'peek') setSnap('peek');
+});
+map.on('dragstart', () => { if (phone && snap === 'full') setSnap('mid'); });
 $('q').addEventListener('input', render);
+$('q').addEventListener('focus', () => { if (phone) setSnap('full'); });
+$('q').addEventListener('keydown', e => { if (e.key === 'Enter') { e.target.blur(); if (phone) setSnap('mid'); } });
 $('group').addEventListener('change', render);
 $('state').addEventListener('change', () => {
   render();
-  const st = $('state').value;
-  if (!st) return;
+  if (!$('state').value) return;
   const pts = filtered().flatMap(x => x.idx.map(i => [x.c.offices[i].lat, x.c.offices[i].lon]));
-  if (pts.length) map.flyToBounds(L.latLngBounds(pts).pad(0.2), { maxZoom: 9, duration: 0.8 });
+  if (pts.length) flyToPoints(pts, 9);
 });
 $('skipCount').textContent = SKIPPED.length;
 $('skipped').textContent = 'Universities, professional societies, finance, insurance, pure software, and civil-only or environmental-only firms were left off: ' + SKIPPED.join(', ') + '.';
+
+function applyLayout() {
+  phone = phoneQuery.matches;
+  map.attributionControl.setPosition(phone ? 'topright' : 'bottomright');
+  if (!phone) { sheet.classList.remove('detail-mode', 'anim'); sheet.style.height = ''; }
+  else setSnap(snap, false);
+}
+phoneQuery.addEventListener('change', () => { closeCompany(); applyLayout(); });
+window.addEventListener('resize', () => { if (phone && !drag) setSnap(snap, false); });
+
 render();
+applyLayout();
+// fit the US once the map has a real size (it can be 0 in a hidden tab or a lazy iframe)
+let fitted = false;
+new ResizeObserver(() => {
+  map.invalidateSize();
+  if (!fitted && map.getSize().x > 0) { map.fitBounds(US_BOUNDS, { ...fitPadding(), animate: false }); fitted = true; }
+}).observe(map.getContainer());
 </script>
 </body>
 </html>
