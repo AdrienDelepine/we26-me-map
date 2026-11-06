@@ -68,8 +68,6 @@
                color: #fff; font-size: 15px; border: 2px solid #fff; box-shadow: 0 1px 5px rgba(0, 0, 0, .4); }
   .sel-label { background: var(--ink); color: #fff; border: 0; border-radius: 6px; font-size: 11px; font-weight: 600; padding: 3px 7px; box-shadow: none; }
   .sel-label::before { display: none; }
-  .map-btn { background: #fff; border: 0; width: 100%; height: 100%; font: inherit; font-size: 12px; font-weight: 600; padding: 0 10px; cursor: pointer; color: var(--ink); }
-  .map-btn:hover { background: var(--hover); }
   .leaflet-control-attribution { font-size: 11px; }
   .legend { background: #fff; padding: 8px 10px; border-radius: 8px; box-shadow: 0 1px 5px rgba(15, 23, 42, .2); font-size: 12px; line-height: 1.8; }
   .legend .dot { margin-right: 6px; vertical-align: -1px; }
@@ -163,18 +161,6 @@ map.addLayer(cluster);
 // selected company sits in its own pane above clusters; everything else dims
 map.createPane('selected').style.zIndex = 640;
 const selection = L.layerGroup().addTo(map);
-
-const Controls = L.Control.extend({
-  onAdd() {
-    const box = L.DomUtil.create('div', 'leaflet-bar');
-    box.style.height = '30px';
-    box.innerHTML = '<button class="map-btn" title="Show the whole US">Reset view</button>';
-    L.DomEvent.disableClickPropagation(box);
-    box.querySelector('button').onclick = resetAll;
-    return box;
-  }
-});
-new Controls({ position: 'topleft' }).addTo(map);
 
 const Legend = L.Control.extend({
   onAdd() {
